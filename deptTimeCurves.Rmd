@@ -1,0 +1,127 @@
+---
+title: "Departure Time Curves"
+output: word_document
+date: "September 12, 2016"
+---
+
+
+
+```{r, echo=FALSE, message=FALSE, fig.width=13, fig.height=7}
+
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+
+message(Sys.time())
+
+#######################
+# INPUTS & PARAMETERS
+#######################
+
+# Set number of iterations (starting at 0)
+numIters = 7
+
+# Open ABM Person File first
+setwd("d:/OH_ABM_DTA/6_Integration/Runs/ABM_160830")
+#per <- read_csv("output_disaggPersonList.csv")
+
+trips <- read_csv("TripList.csv")
+tripVar <- trips[,c("hhid","pnum","uniqueid","personTripNum","finalDepartMinute","destPurp","mode","origPurp")]
+
+# Location of iSAM output files 
+setwd('d:/OH_ABM_DTA/6_Integration/Runs/convergence_12sep2016')
+
+
+#######################
+# PROCESSING
+#######################
+
+iters <- c(0:numIters)
+
+# "-1" adjusted schedule
+adjNeg1 <- read_csv('iter0/adjusted_schedules_abm.csv')
+adjNeg1 <- left_join(adjNeg1, tripVar, by = c("hhid" = "hhid", "pnum" = "pnum", "tripid" = "uniqueid"))
+allIter <- adjNeg1 %>%
+  mutate(iteration = -1)
+
+
+for (itNum in iters) {
+  message(itNum)
+  # Read Nth iteration files
+  adjx <- read_csv(paste("iter",itNum,"/adjusted_schedules_",itNum,".csv",sep=""))
+  adjx <- left_join(adjx, tripVar, by = c("hhid" = "hhid", "pnum" = "pnum", "tripid" = "uniqueid"))
+  adjx <- adjx %>%
+    mutate(iteration = itNum)
+
+  allIter <- bind_rows(allIter, adjx)  
+  
+} # for / over iterations  
+
+message(Sys.time())
+
+
+# Define graph theme
+theme_dcurve <- function(){
+  theme(
+    strip.text = element_text(size=15),
+    plot.title = element_text(size=17, face="bold"),
+    axis.text = element_text(size=15),
+    axis.title = element_text(size=15),
+    legend.text = element_text(size=15),
+    legend.title = element_text(size=15),
+    legend.key.width = unit(3,"line"),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black")
+    )
+}
+
+# Plots
+
+ggplot(data=allIter[allIter$destPurp==1 & allIter$origPurp==0,], aes(adjustedDepartMinute, colour=factor(iteration))) +
+  geom_freqpoly(binwidth=15, size=2,aes(linetype=factor(iteration)))+
+  labs(title="Departure Minute for Home-to-Work Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+ggplot(data=allIter[allIter$destPurp==1 & allIter$origPurp==0,], aes(adjustedArriveMinute, colour=factor(iteration))) +
+  geom_freqpoly(binwidth=15, size=2,aes(linetype=factor(iteration)))+
+  labs(title="Arrival Minute for Home-to-Work Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+ggplot(data=allIter[allIter$destPurp==0 & allIter$origPurp==1,], aes(adjustedDepartMinute, colour=factor(iteration))) +
+  geom_freqpoly(binwidth=15, size=2,aes(linetype=factor(iteration)))+
+  labs(title="Departure Minute for Work-to-Home Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+ggplot(data=allIter[allIter$destPurp==0 & allIter$origPurp==5,], aes(adjustedDepartMinute, colour=factor(iteration))) +
+  geom_freqpoly(binwidth=15, size=2,aes(linetype=factor(iteration)))+
+  labs(title="Departure Minute for Shopping-to-Home Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+ggplot(data=allIter[allIter$destPurp==5,], aes(adjustedDepartMinute, colour=factor(iteration))) +
+  geom_freqpoly(binwidth=15,size=2,aes(linetype=factor(iteration)))+
+  labs(title="Departure Minute for Shopping Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+ggplot(data=allIter[allIter$destPurp==3,], aes(adjustedDepartMinute, colour=factor(iteration), linetype=factor(iteration))) +
+  geom_freqpoly(binwidth=15,size=2)+
+  labs(title="Departure Minute for School Trips over iSAM Iterations")+
+  scale_linetype_discrete(name="iSAM Iteration")+
+  scale_colour_discrete(name="iSAM Iteration")+
+  theme_dcurve()
+
+
+
+
+```
+
