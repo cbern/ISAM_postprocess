@@ -1,12 +1,8 @@
 ---
-title: "ABM/DTA Convergence Measures"
+title: "Columbus ABM/DTA Convergence Measures"
 output: word_document
-date: "September 12, 2016"
 ---
 
-
-
-## iSAM Convergence Measures
 ## 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=7}
@@ -17,118 +13,145 @@ options(warn = -1)
 library(dplyr)
 library(readr)
 library(ggplot2)
-library(rmarkdown)
+#library(rmarkdown)
 library(reshape2)
 
 #######################
 # INPUTS & PARAMETERS
 #######################
 
-# Set number of iterations (starting at 0)
-numIters = 7
+# Set number of outer-loop iterations (starting at 0)
+numOuterIters = 2
+
+# Set number of inner-loop iterations (starting at 0)
+numIters = 3
 
 
 # Location of summary files
-setwd("D:/OH_ABM_DTA/6_Integration/Runs/convergence_12sep2016")
+setwd("D:/OH_ABM_DTA/7_outerIntegration/170602")
+basedir <- getwd()
 
 #######################
 # INPUTS & PARAMETERS
 #######################
+outIters <- c(0:numOuterIters)
 
+for (outerItNum in outIters) {
 
-iters <- c(0:numIters)
+  dirname <- paste0(basedir, "/outer", outerItNum)  
+  setwd(dirname)
 
-
-
-# Pre-process iter -1
-  currpSumm <- read_csv(paste("iter", "Neg1","_inconsistent_summ.csv",sep=""))
-  datarows <- nrow(currpSumm)
-  currpSumm[datarows+1,] <- colSums(currpSumm)
-  currpSumm[datarows+1,"persType"] <- 0
-  currpSumm[datarows+1,"dailyActivityPattern"] <- 0
-  perSumm <- currpSumm %>%
-    mutate(iteration  = -1,
-           unstable   = NA,
-           pcstressed = NA,
-           pcunstable = 0,
-           pcinconsistent = inconsistent/persons*100,
-           persons_unstable = 0,
-           trips_unstable = 0)  
+  iters <- c(0:numIters)
   
-
-for (itNum in iters) {
- 
-  if (itNum < numIters) {
-  # Inconsistent Summary
-      currpSumm <- read_csv(paste("iter", itNum,"_inconsistent_summ.csv",sep=""))
-      
-      # Add total row, with persType = 0 and dailyActivityPattern = 0
-      datarows <- nrow(currpSumm)
-      currpSumm[datarows+1,] <- colSums(currpSumm)
-      currpSumm[datarows+1,"persType"] <- 0
-      currpSumm[datarows+1,"dailyActivityPattern"] <- 0
-      
-      # Add iteration number column
-      currpSumm <- currpSumm %>%
-        mutate(iteration = itNum,
-               pcinconsistent = inconsistent/persons*100)  
-      
-      perSummthisiter <- currpSumm
-
   
- # Stressed & Stability Summary
-      currpSumm <- read_csv(paste("iter", itNum,"_stable_stressed_summ.csv",sep=""))
-      
-      datarows <- nrow(currpSumm)
-      currpSumm[datarows+1,] <- colSums(currpSumm)
-      currpSumm[datarows+1,"persType"] <- 0
-      currpSumm[datarows+1,"dailyActivityPattern"] <- 0
-      
-      currpSumm <- currpSumm %>%
-        mutate(iteration  = itNum,
-               persons_unstable = persons,
-               trips_unstable = trips,
-               pcstressed = stressed/persons*100,
-               pcunstable = unstable/persons*100) 
-      
-      currpSumm_s <- currpSumm %>%
-        select(persType, dailyActivityPattern, iteration, persons_unstable, trips_unstable,
-               pcunstable, unstable, stressed, pcstressed)
-      
-      fullSummthisiter <- left_join(perSummthisiter, currpSumm_s, by = c("persType", "dailyActivityPattern", "iteration"))
-      
-      #j <- left_join(perSumm, currpSumm, by=c("persType", "dailyActivityPattern"))
-      #j$pcunstab
-
-            
-     # Append current iter to summary file
-      perSumm <- bind_rows(perSumm, fullSummthisiter)
-      
-  }
+  # Pre-process iter -1
+    currpSumm <- read_csv(paste("inner", "Neg1","_inconsistent_summ.csv",sep=""))
   
-  if (itNum == 7){
-    currpSumm <- read_csv(paste("iter", itNum,"_stable_stressed_summ.csv",sep=""))
-      
     datarows <- nrow(currpSumm)
     currpSumm[datarows+1,] <- colSums(currpSumm)
     currpSumm[datarows+1,"persType"] <- 0
     currpSumm[datarows+1,"dailyActivityPattern"] <- 0
-      
-    currpSumm <- currpSumm %>%
-      mutate(iteration  = itNum,
-             persons_unstable = persons,
-             trips_unstable = trips,
-             pcunstable = unstable/persons*100,
-             inconsistent = NA,
-             pcstressed = stressed/persons*100,
-             pcinconsistent = NA) 
     
-    perSumm <- bind_rows(perSumm, currpSumm)
+    if (outerItNum >0) {
+      perSumm <- bind_rows(perSumm, currpSumm %>%
+        mutate(iteration  = -1,
+               outerIter  = outerItNum,
+               unstable   = NA,
+               pcstressed = NA,
+               pcunstable = 0,
+               pcinconsistent = inconsistent/persons*100,
+               persons_unstable = 0,
+               trips_unstable = 0)  )
+    } else{
+      perSumm0 <- currpSumm %>%
+        mutate(iteration  = -1,
+               outerIter  = outerItNum,
+               unstable   = NA,
+               pcstressed = NA,
+               pcunstable = 0,
+               pcinconsistent = inconsistent/persons*100,
+               persons_unstable = 0,
+               trips_unstable = 0) 
+    }
+   
+    
+  
+  for (itNum in iters) {
+   
+    if (itNum < numIters) {
+    # Inconsistent Summary
+        currpSumm <- read_csv(paste("inner", itNum,"_inconsistent_summ.csv",sep=""))
+        
+        # Add total row, with persType = 0 and dailyActivityPattern = 0
+        datarows <- nrow(currpSumm)
+        currpSumm[datarows+1,] <- colSums(currpSumm)
+        currpSumm[datarows+1,"persType"] <- 0
+        currpSumm[datarows+1,"dailyActivityPattern"] <- 0
+        
+        # Add iteration number column
+        currpSumm <- currpSumm %>%
+          mutate(iteration = itNum,
+                 outerIter = outerItNum,
+                 pcinconsistent = inconsistent/persons*100)  
+        
+        perSummthisiter <- currpSumm
+  
+    
+   # Stressed & Stability Summary
+        currpSumm <- read_csv(paste("inner", itNum,"_stable_stressed_summ.csv",sep=""))
+        
+        datarows <- nrow(currpSumm)
+        currpSumm[datarows+1,] <- colSums(currpSumm)
+        currpSumm[datarows+1,"persType"] <- 0
+        currpSumm[datarows+1,"dailyActivityPattern"] <- 0
+        
+        currpSumm <- currpSumm %>%
+          mutate(iteration  = itNum,
+                 outerIter = outerItNum,
+                 persons_unstable = persons,
+                 trips_unstable = trips,
+                 pcstressed = stressed/persons*100,
+                 pcunstable = unstable/persons*100) 
+        
+        currpSumm_s <- currpSumm %>%
+          select(persType, dailyActivityPattern, iteration, persons_unstable, trips_unstable,
+                 pcunstable, unstable, stressed, pcstressed)
+        
+        fullSummthisiter <- left_join(perSummthisiter, currpSumm_s, by = c("persType", "dailyActivityPattern", "iteration"))
+        
+
+        if (itNum == 0 & outerItNum == 0) {  
+          perSumm <- bind_rows(perSumm0, fullSummthisiter)
+        } else {
+          perSumm <- bind_rows(perSumm, fullSummthisiter)
+        }
+        
+    }
+    
+    if (itNum == numIters){
+      currpSumm <- read_csv(paste("inner", itNum,"_stable_stressed_summ.csv",sep=""))
+        
+      datarows <- nrow(currpSumm)
+      currpSumm[datarows+1,] <- colSums(currpSumm)
+      currpSumm[datarows+1,"persType"] <- 0
+      currpSumm[datarows+1,"dailyActivityPattern"] <- 0
+        
+      currpSumm <- currpSumm %>%
+        mutate(iteration  = itNum,
+               outerIter = outerItNum,
+               persons_unstable = persons,
+               trips_unstable = trips,
+               pcunstable = unstable/persons*100,
+               inconsistent = NA,
+               pcstressed = stressed/persons*100,
+               pcinconsistent = NA) 
+      
+      perSumm <- bind_rows(perSumm, currpSumm)
+      
+    }
     
   }
-  
-}
-
+} # Outer Iterations
 
 ######################
 # Plots
@@ -144,11 +167,7 @@ perSumm$ptypeDAP <- with(perSumm,interaction(persType, dailyActivityPattern, dro
 perSumm$ptypeDAPf <- with(perSumm,interaction(persTypef, dapf, drop=TRUE))
 
 
-```
 
-### 8 Person Types, for 3 Different Stress Measures
-
-```{r, echo=FALSE, message=FALSE, fig.width=10, fig.height=7}
 # Ptype by Measures (#)
 #-----------------------------------
 
@@ -159,7 +178,7 @@ nototal <- nototal %>%
          totActTime = persons * avgActTime)
 
 nototal <- nototal %>%
-  group_by(persType, iteration) %>%
+  group_by(outerIter, persType, iteration) %>%
   summarise(trips = sum(trips),
             persons = sum(persons),
             trips_unstable = sum(trips_unstable),
@@ -184,232 +203,100 @@ nototal$persTypef <- factor(nototal$persType, levels=c(1:8),
                             labels=c("FT Worker", "PT Worker","University Student",
                                      "Non-Worker", "Retiree", "Driving Age Student",
                                      "Pre-Driving Age Student", "Pre-school Child"))
-# nototal$dapf <- factor(nototal$dailyActivityPattern, levels=c(1:2), 
-#                        labels=c("Mandatory", "Non-Mandatory"))
-# nototal$ptypeDAP <- with(nototal,interaction(persType, dailyActivityPattern, drop=TRUE))
-# nototal$ptypeDAPf <- with(nototal,interaction(persTypef, dapf, drop=TRUE))
-
-# Number
-print(ggplot()  +
-        geom_line(data=nototal, aes(x=iteration, y=inconsistent, color=persTypef),size=1) +
-        geom_point(data=nototal, aes(x=iteration, y=inconsistent, color=persTypef),size=3) +
-        scale_x_continuous(breaks=c(0:numIters)) +
-        labs(title=paste('Number of People with Inconsistent Schedules',sep=''),
-             x = 'iSAM Iteration',
-             y = 'Number of People',
-             color='Person Type') +
-        theme(axis.text = element_text(size=15))+
-        theme(strip.text = element_text(size=15))+
-        theme(plot.title = element_text(size=17))+
-        theme(axis.title = element_text(size=15))+
-        theme(legend.text = element_text(size=15))
-)
-      
-print(ggplot()  +
-  geom_line(data=nototal, aes(x=iteration, y=unstable, color=persTypef),size=1) +
-  geom_point(data=nototal, aes(x=iteration, y=unstable, color=persTypef),size=3) +
-  scale_x_continuous(breaks=c(0:numIters)) +
-  labs(title=paste('Number of People with Unstable Schedules',sep=''),
-       x = 'iSAM Iteration',
-       y = 'Number of People',
-       color='Person Type') +
-    theme(axis.text = element_text(size=15))+
-    theme(strip.text = element_text(size=15))+
-    theme(plot.title = element_text(size=17))+
-    theme(axis.title = element_text(size=15))+
-    theme(legend.text = element_text(size=15))
-)
-
-print(ggplot()  +
-  geom_line(data=nototal, aes(x=iteration, y=stressed, color=persTypef),size=1) +
-  geom_point(data=nototal, aes(x=iteration, y=stressed, color=persTypef),size=3) +
-  scale_x_continuous(breaks=c(0:numIters)) +
-  labs(title=paste('Number of People with Stressed Schedules',sep=''),
-       x = 'iSAM Iteration',
-       y = 'Number of People',
-       color='Person Type') +
-    theme(axis.text = element_text(size=15))+
-    theme(strip.text = element_text(size=15))+
-    theme(plot.title = element_text(size=17))+
-    theme(axis.title = element_text(size=15))+
-    theme(legend.text = element_text(size=15))
-)
-
-# Percent
-print(ggplot()  +
-  geom_line(data=nototal, aes(x=iteration, y=pcinconsistent, color=persTypef),size=1) +
-  geom_point(data=nototal, aes(x=iteration, y=pcinconsistent, color=persTypef),size=3) +
-  scale_x_continuous(breaks=c(0:numIters)) +
-  labs(title=paste('Percentage of People with Inconsistent Schedules',sep=''),
-       x = 'iSAM Iteration',
-       y = '% of People',
-       color='Person Type') +
-    theme(axis.text = element_text(size=15))+
-    theme(strip.text = element_text(size=15))+
-    theme(plot.title = element_text(size=17))+
-    theme(axis.title = element_text(size=15))+
-    theme(legend.text = element_text(size=15))
-)
-
-print(ggplot()  +
-  geom_line(data=nototal, aes(x=iteration, y=pcunstable, color=persTypef),size=1) +
-  geom_point(data=nototal, aes(x=iteration, y=pcunstable, color=persTypef),size=3) +
-  scale_x_continuous(breaks=c(0:numIters)) +
-  labs(title=paste('Percentage of People with Unstable Schedules',sep=''),
-       x = 'iSAM Iteration',
-       y = '% of People',
-       color='Person Type') +
-    theme(axis.text = element_text(size=15))+
-    theme(strip.text = element_text(size=15))+
-    theme(plot.title = element_text(size=17))+
-    theme(axis.title = element_text(size=15))+
-    theme(legend.text = element_text(size=15))
-)
-
-print(ggplot()  +
-  geom_line(data=nototal, aes(x=iteration, y=pcstressed, color=persTypef),size=1) +
-  geom_point(data=nototal, aes(x=iteration, y=pcstressed, color=persTypef),size=3) +
-  scale_x_continuous(breaks=c(0:numIters)) +
-  labs(title=paste('Percentage of People with Stressed Schedules',sep=''),
-       x = 'iSAM Iteration',
-       y = '% of People',
-       color='Person Type') +
-    theme(axis.text = element_text(size=15))+
-    theme(strip.text = element_text(size=15))+
-    theme(plot.title = element_text(size=17))+
-    theme(axis.title = element_text(size=15))+
-    theme(legend.text = element_text(size=15))
-)
-
 
 
 ```
-
-### 3 Convergence Measures for Different Person Types and DAP
+## 
+##
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=7}
 
+totalonly <- filter(perSumm, dapf == "All", persTypef == "All Person Types") %>%
+  mutate(outerIter = paste0("Outer_Iteration_", outerIter))
+
 # All 3 Measures, by ptype and DAP
 #-----------------------------------
-for (pd in levels(perSumm$ptypeDAP)){
-  
-  pdn = as.numeric(pd)
-  
-  # Parse "level" into person type and DAP
-  ptypen = floor(pdn)
-  dapn   = round((pdn - ptypen)*10)
-  ptype  = levels(perSumm$persTypef)[ptypen+1]
-  dap    = levels(perSumm$dapf)[dapn+1]
-  
-  print(ggplot(data=perSumm[perSumm$ptypeDAP==pd,], aes(iteration))  +
-   geom_line(aes(y=inconsistent, color="Inconsistent"),size=1) +
-   geom_point(aes(y=inconsistent, color="Inconsistent"),size=3) +
-   geom_line(aes(y=stressed, color="Stressed"),size=1)  +
-   geom_point(aes(y=stressed, color="Stressed"),size=3) +
-   geom_line(aes(y=unstable, color="Unstable"),size=1)  +
-   geom_point(aes(y=unstable, color="Unstable"),size=3) +
+
+theme_a <- function(){
+  theme(
+          axis.text = element_text(size=15),
+          strip.text = element_text(size=15),
+          plot.title = element_text(size=17),
+          axis.title = element_text(size=15),
+          legend.text = element_text(size=15)
+    )
+}
+
+# Number
+
+  print(ggplot(data=totalonly, aes(iteration))  +
+   facet_grid(~outerIter) +
+   geom_line(aes(y=inconsistent),size=1) +
+   geom_point(aes(y=inconsistent),size=3) +
    scale_x_continuous(breaks=c(0:numIters)) +
-   labs(title=paste('',ptype,', ',dap,' Activity Pattern',sep=''),
+   labs(title=paste('Inconsistent Schedules',sep=''),
         x = 'iSAM Iteration',
-        y = 'Number of People',
-        color='Schedule Status') +
-          theme(axis.text = element_text(size=15))+
-          theme(strip.text = element_text(size=15))+
-          theme(plot.title = element_text(size=17))+
-          theme(axis.title = element_text(size=15))+
-          theme(legend.text = element_text(size=15))
+        y = 'Number of People') +
+   theme_a()
   )
-}
 
-
-
-for (pd in levels(perSumm$ptypeDAP)){
+  print(ggplot(data=totalonly, aes(iteration))  +
+   facet_grid(~outerIter) +
+   geom_line(aes(y=stressed),size=1)  +
+   geom_point(aes(y=stressed),size=3) +
+   scale_x_continuous(breaks=c(0:numIters)) +
+   labs(title=paste('Stressed Schedules',sep=''),
+        x = 'iSAM Iteration',
+        y = 'Number of People')  +
+   theme_a()
+  )
   
-  pdn = as.numeric(pd)
-  
-  # Parse "level" into person type and DAP
-  ptypen = floor(pdn)
-  dapn   = round((pdn - ptypen)*10)
-  ptype  = levels(perSumm$persTypef)[ptypen+1]
-  dap    = levels(perSumm$dapf)[dapn+1]
+  print(ggplot(data=totalonly, aes(iteration))  +
+   facet_grid(~outerIter) +
+   geom_line(aes(y=unstable),size=1)  +
+   geom_point(aes(y=unstable),size=3) +
+   scale_x_continuous(breaks=c(0:numIters)) +
+   labs(title=paste('Unstable Schedules',sep=''),
+        x = 'iSAM Iteration',
+        y = 'Number of People')  +
+   theme_a()
+  )
 
-  print(ggplot(data=perSumm[perSumm$ptypeDAP==pd,], aes(iteration))  +
-          geom_line(aes(y=pcinconsistent, color="Inconsistent"),size=1) +
-          geom_point(aes(y=pcinconsistent, color="Inconsistent"),size=3) +
-          geom_line(aes(y=pcunstable, color="Unstable"),size=1)  +
-          geom_point(aes(y=pcunstable, color="Unstable"),size=3) +
-          geom_line(aes(y=pcstressed, color="Stressed"),size=1)  +
-          geom_point(aes(y=pcstressed, color="Stressed"),size=3) +
+# Percent
+  print(ggplot(data=totalonly, aes(iteration))  +
+          facet_grid(~outerIter) +
+          geom_line(aes(y=pcinconsistent),size=1) +
+          geom_point(aes(y=pcinconsistent),size=3) +
           scale_x_continuous(breaks=c(0:numIters)) +
-          labs(title=paste('',ptype,', ',dap,' Activity Pattern',sep=''),
+          labs(title=paste('Inconsistent Schedules',sep=''),
                x = 'iSAM Iteration',
-               y = 'Percentage of People',
-               color='Schedule Status') +
-          theme(axis.text = element_text(size=15))+
-          theme(strip.text = element_text(size=15))+
-          theme(plot.title = element_text(size=17))+
-          theme(axis.title = element_text(size=15))+
-          theme(legend.text = element_text(size=15))
+               y = 'Percentage of People')  +
+   theme_a()
   )  
-}
-
-```
-
-
-
-
-## Time Budget Measures
-
-```{r, warning=FALSE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=7}
-# Time Budget
-#-----------------
-
-lastiter <- perSumm %>%
-  filter(iteration == numIters)
-lastiter$src <- 'Model'
-
-survey <- read_csv("../../ExternalData/stat_travel_Budget_By_Pertype.csv")
-names(survey)[names(survey)=='pertype'] <- 'persType'
-names(survey)[names(survey)=='dap'] <- 'dailyActivityPattern'
-names(survey)[names(survey)=='dytravtime'] <- 'avgTravelTime'
-names(survey)[names(survey)=='dyacttime'] <- 'avgActTime'
-survey$src <- 'Survey'
-survey <- left_join(survey,lastiter[,c("persType","dailyActivityPattern","persTypef","dapf")], by=c("persType","dailyActivityPattern"))
-
-lastitersurv <- bind_rows(lastiter,survey)
-lismelt <- melt(lastitersurv[,c("persType","dailyActivityPattern","persTypef","dapf",
-                                "avgTravelTime", "avgActTime","src")], 
-                id.vars=c("persType","dailyActivityPattern","persTypef","dapf","src"),
-                variable.name="timevar",
-                value.name = "timeminutes")
-lismelt <- lismelt %>%
-  filter(persType >0 & !is.na(persTypef))
-lismelt <- lismelt %>%
-  mutate(timevarlabel = ifelse(timevar=="avgTravelTime","Avg Daily Travel Time Budget", "Avg Daily Out of Home Activity Duration"))
-
-pertypes <- levels(lismelt$persTypef)
-pertypes <- pertypes[-1]
-
-for (pt in pertypes){
   
-  print(ggplot(data=lismelt[lismelt$persTypef==pt,],aes(x=dapf, y=timeminutes, fill=src))  +
-          geom_bar(stat="identity", position=position_dodge())+
-          facet_grid(.~timevarlabel)+
-          labs(title=paste(pt,sep=''),
-               x = 'Daily Activity Pattern',
-               y = 'Duration (minutes)',
-               color='Source') +
-          theme(axis.text = element_text(size=15))+
-          theme(strip.text = element_text(size=15))+
-          theme(plot.title = element_text(size=17))+
-          theme(axis.title = element_text(size=15))+
-          theme(legend.text = element_text(size=15))
-  )
-  
-}
-
-
-```
-
+      print(ggplot(data=totalonly, aes(iteration))  +
+          facet_grid(~outerIter) +
+          geom_line(aes(y=pcstressed),size=1)  +
+          geom_point(aes(y=pcstressed),size=3) +
+          scale_x_continuous(breaks=c(0:numIters)) +
+          labs(title=paste('Stressed Schedules',sep=''),
+               x = 'iSAM Iteration',
+               y = 'Percentage of People')  +
+   theme_a()
+  )  
+    print(ggplot(data=totalonly, aes(iteration))  +
+          facet_grid(~outerIter) +
+          geom_line(aes(y=pcunstable),size=1)  +
+          geom_point(aes(y=pcunstable),size=3) +
+          scale_x_continuous(breaks=c(0:numIters)) +
+          labs(title=paste('Unstable Schedules',sep=''),
+               x = 'iSAM Iteration',
+               y = 'Percentage of People') +
+   theme_a()
+  )  
 
 options(warn = oldw)
+
+```
+
+
