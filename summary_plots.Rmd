@@ -58,7 +58,7 @@ for (outerItNum in outIters) {
                outerIter  = outerItNum,
                unstable   = NA,
                pcstressed = NA,
-               pcunstable = 0,
+               pcunstable = NA,
                pcinconsistent = inconsistent/persons*100,
                persons_unstable = 0,
                trips_unstable = 0)  )
@@ -68,7 +68,7 @@ for (outerItNum in outIters) {
                outerIter  = outerItNum,
                unstable   = NA,
                pcstressed = NA,
-               pcunstable = 0,
+               pcunstable = NA,
                pcinconsistent = inconsistent/persons*100,
                persons_unstable = 0,
                trips_unstable = 0) 
@@ -196,7 +196,7 @@ nototal <- nototal %>%
   mutate(avgActTime = totActTime / persons,
          avgTravelTime = totTravelTime / persons,
            pcstressed = stressed/persons*100,
-           pcunstable = unstable/persons_unstable*100,
+           pcunstable = unstable/persons*100,
            pcinconsistent = inconsistent/persons*100)
 
 nototal$persTypef <- factor(nototal$persType, levels=c(1:8), 
@@ -227,7 +227,7 @@ theme_a <- function(){
     )
 }
 
-# Number
+
 
   print(ggplot(data=totalonly, aes(iteration))  +
    facet_grid(~outerIter) +
@@ -241,6 +241,17 @@ theme_a <- function(){
   )
 
   print(ggplot(data=totalonly, aes(iteration))  +
+          facet_grid(~outerIter) +
+          geom_line(aes(y=pcinconsistent),size=1) +
+          geom_point(aes(y=pcinconsistent),size=3) +
+          scale_x_continuous(breaks=c(0:numIters)) +
+          labs(title=paste('Inconsistent Schedules',sep=''),
+               x = 'iSAM Iteration',
+               y = 'Percentage of People')  +
+   theme_a()
+  )  
+
+  print(ggplot(data=totalonly, aes(iteration))  +
    facet_grid(~outerIter) +
    geom_line(aes(y=stressed),size=1)  +
    geom_point(aes(y=stressed),size=3) +
@@ -250,6 +261,17 @@ theme_a <- function(){
         y = 'Number of People')  +
    theme_a()
   )
+      
+  print(ggplot(data=totalonly, aes(iteration))  +
+          facet_grid(~outerIter) +
+          geom_line(aes(y=pcstressed),size=1)  +
+          geom_point(aes(y=pcstressed),size=3) +
+          scale_x_continuous(breaks=c(0:numIters)) +
+          labs(title=paste('Stressed Schedules',sep=''),
+               x = 'iSAM Iteration',
+               y = 'Percentage of People')  +
+   theme_a()
+  ) 
   
   print(ggplot(data=totalonly, aes(iteration))  +
    facet_grid(~outerIter) +
@@ -262,28 +284,7 @@ theme_a <- function(){
    theme_a()
   )
 
-# Percent
-  print(ggplot(data=totalonly, aes(iteration))  +
-          facet_grid(~outerIter) +
-          geom_line(aes(y=pcinconsistent),size=1) +
-          geom_point(aes(y=pcinconsistent),size=3) +
-          scale_x_continuous(breaks=c(0:numIters)) +
-          labs(title=paste('Inconsistent Schedules',sep=''),
-               x = 'iSAM Iteration',
-               y = 'Percentage of People')  +
-   theme_a()
-  )  
-  
-      print(ggplot(data=totalonly, aes(iteration))  +
-          facet_grid(~outerIter) +
-          geom_line(aes(y=pcstressed),size=1)  +
-          geom_point(aes(y=pcstressed),size=3) +
-          scale_x_continuous(breaks=c(0:numIters)) +
-          labs(title=paste('Stressed Schedules',sep=''),
-               x = 'iSAM Iteration',
-               y = 'Percentage of People')  +
-   theme_a()
-  )  
+   
     print(ggplot(data=totalonly, aes(iteration))  +
           facet_grid(~outerIter) +
           geom_line(aes(y=pcunstable),size=1)  +
